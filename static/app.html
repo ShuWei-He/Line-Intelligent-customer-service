@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>家長訊息後台</title>
+        <style>
+            body{font-family:system-ui,"Noto Sans TC",sans-serif;margin:0;background:#f4f5f7;color:#222}
+            header{position:sticky;top:0;z-index:5;background:#06c755;color:#fff;padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:14px}
+            header b{font-size:16px;margin-right:auto}#quota{background:#0003;padding:2px 10px;border-radius:99px}
+            nav{display:flex;gap:6px;padding:8px 12px;background:#fff;box-shadow:0 1px 2px #0002;overflow-x:auto}
+            nav button{background:#eee;color:#333;margin:0}nav button.on{background:#06c755;color:#fff}
+            main{padding:12px;max-width:900px;margin:auto}.card,.box{background:#fff;border-radius:10px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
+            .meta{font-size:13px;color:#666;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.badge{padding:2px 8px;border-radius:99px;font-size:12px;color:#fff}
+            .faq{background:#2e7d32}.personal{background:#ef6c00}.sensitive{background:#c62828}.msg{white-space:pre-wrap;background:#eef2ff;border-radius:8px;padding:8px;margin:8px 0}
+            textarea,input,select{font:inherit;padding:6px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box}textarea{width:100%;min-height:120px}
+            button{font:inherit;padding:8px 14px;border:0;border-radius:8px;margin:6px 6px 0 0;background:#06c755;color:#fff;cursor:pointer}
+            button.g{background:#888}button.s{background:#1565c0}button.r{background:#c62828}button:disabled{background:#ccc;color:#888;cursor:not-allowed}
+            .note{font-size:13px;color:#b26a00;margin-top:4px}.src,.tag{font-size:12px;color:#777;margin-top:4px}.tag{color:#1565c0}
+            .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}table{border-collapse:collapse;width:100%;background:#fff}td,th{border:1px solid #ddd;padding:8px;text-align:center;font-size:14px}
+            th{background:#f0f0f0}td.c{cursor:pointer}td.c:hover{background:#e8f5e9}.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+            .pend{color:#c62828;font-weight:600}h3{margin:4px 0 8px}
+        </style>
+    </head>
+    <body>
+        <header><b>📩 家長訊息後台</b><span id="quota">額度讀取中…</span><span id="who"></span><a href="#" id="rl" style="color:#fff">重載FAQ</a></header>
+        <nav id="tabs"></nav><main id="view"></main>
+        <script>
+        const $=i=>document.getElementById(i);
+        const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined&&x!==null)e.textContent=x;return e};
+        const api=async(u,m='GET',b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.detail||('HTTP '+r.status));return j};
+        const S={tab:'msgs',teacher:'',slot:'',meta:{teachers:[],slots:[],contacts:[]},role:'admin',push:false};
+        const LB={faq:'FAQ 類',personal:'個別/需人工',sensitive:'⚠️ 敏感,請親自回覆'};
+        const opt=(sel,v,t)=>{const o=el('option','',t);o.value=v;sel.append(o)};
+        const sel=(items,cur,first)=>{const s=el('select');if(first!==null)opt(s,'',first);items.forEach(i=>opt(s,i[0],i[1]));s.value=cur==null?'':String(cur);return s};
+        const T=()=>S.meta.teachers.map(t=>[t.id,t.name]),SL=()=>S.meta.slots.map(s=>[s.id,s.label]);
+
+        async function loadMeta(){S.meta=await api('/api/meta');S.role=S.meta.role;S.push=S.meta.push_enabled;$('who').textContent=S.role==='super'?'👑 Super User':'一般管理員';tabs()}
+        async function loadQuota(){try{const q=await api('/api/quota');let t;
+        if(!q.ok)t='PUSH 額度:無法取得';else if(q.type==='limited')t=`PUSH 額度 已用 ${q.used}/${q.limit}(剩 ${q.remaining})`;else t=`PUSH 額度:不限(本月已用 ${q.used})`;
+        $('quota').textContent=t+` · 本系統已送 ${q.local_sent}`}catch(e){}}
+        function tabs(){const n=$('tabs');n.replaceChildren();
+        [['msgs','待處理訊息'],['ov','總覽'],['mg','導師/學生管理'],...(S.role==='super'?[['st','設定']]:[])].forEach(([k,t])=>{const b=el('button',S.tab===k?'on':'',t);b.onclick=()=>{S.tab=k;tabs();render(true)};n.append(b)})}
+        function render(force){({msgs:vMsgs,ov:vOv,mg:vMg,st:vSt})[S.tab](force)}
+
+        async function vMsgs(force){const v=$('view');
+        if(!force&&v.contains(document.activeElement)&&['TEXTAREA','SELECT','INPUT'].includes(document.activeElement.tagName))return;
+        const list=await api('/api/drafts?'+new URLSearchParams({teacher:S.teacher,slot:S.slot}));
+        const bar=el('div','bar');const ts=sel(T(),S.teacher,'全部導師');opt(ts,'none','未分類(未綁定導師)');ts.value=S.teacher;
+        const ss=sel(SL(),S.slot,'全部時段');ts.onchange=()=>{S.teacher=ts.value;vMsgs(true)};ss.onchange=()=>{S.slot=ss.value;vMsgs(true)};bar.append(ts,ss);
+        const out=[bar];if(!list.length)out.push(el('p','','目前沒有待處理的訊息 🎉'));
+        for(const d of list){const c=el('div','card'),m=el('div','meta');
+            m.append(el('b','',d.name),el('span','',new Date(d.ts*1000).toLocaleString('zh-TW')),el('span','badge '+d.label,LB[d.label]||d.label));
+            if(d.label!=='sensitive')m.append(el('span','','相似度 '+d.score.toFixed(2)));
+            c.append(m,el('div','tag',d.students.length?'👦 '+d.students.map(s=>`${s.name}(${s.teacher||'未指定導師'} ${s.slot||'未指定時段'})`).join('、'):'👦 尚未綁定學生'),el('div','msg',d.parent_text));
+            let ta=null;if(d.label!=='sensitive'){ta=el('textarea');ta.value=d.draft;c.append(ta)}
+            if(d.note)c.append(el('div','note','📝 '+d.note));
+            if(d.sources.length)c.append(el('div','src','參考:'+d.sources.map(s=>s.q+'('+s.score+')').join('、')));
+            if(ta){const b=el('button','','複製');b.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value)}catch(e){ta.select();document.execCommand('copy')}b.textContent='已複製 ✓'};c.append(b);
+            const sd=el('button','s','傳送(PUSH)');sd.disabled=!S.push;sd.title=S.push?'以 LINE PUSH 傳送給家長(消耗額度)':'推播功能已由 Super User 關閉';
+            sd.onclick=async()=>{if(!confirm(`確定用 LINE PUSH 傳送給「${d.name}」?\n會消耗官方帳號訊息額度,送出後無法收回。\n\n${ta.value}`))return;
+                try{await api(`/api/drafts/${d.id}/send`,'POST',{text:ta.value});loadQuota();vMsgs(true)}catch(e){alert('傳送失敗:'+e.message)}};c.append(sd)}
+            const ok=el('button','',ta?'已回覆(手動送出)':'已處理');ok.onclick=async()=>{await api(`/api/drafts/${d.id}/done`,'POST',{final_text:ta?ta.value:''});vMsgs(true)};
+            const sk=el('button','g','略過');sk.onclick=async()=>{await api(`/api/drafts/${d.id}/skip`,'POST');vMsgs(true)};c.append(ok,sk);out.push(c)}
+        v.replaceChildren(...out)}
+
+        async function vOv(){const o=await api('/api/overview'),v=$('view'),tb=el('table'),h=el('tr');
+        ['導師 \\ 時段',...S.meta.slots.map(s=>s.label),'待處理合計'].forEach(x=>h.append(el('th','',x)));tb.append(h);
+        const go=(t,s)=>{S.teacher=t;S.slot=s;S.tab='msgs';tabs();render(true)};
+        for(const t of S.meta.teachers){const r=el('tr'),n=el('td','c',t.name);n.onclick=()=>go(String(t.id),'');r.append(n);
+            for(const s of S.meta.slots){const c=o.cells.find(x=>x.t===t.id&&x.s===s.id)||{students:0,pending:0},td=el('td','c');
+            td.append(el('div','',`學生 ${c.students}`),el('div',c.pending?'pend':'',`待處理 ${c.pending}`));td.onclick=()=>go(String(t.id),String(s.id));r.append(td)}
+            const tt=el('td','c'+(o.by_teacher[t.id]?' pend':''),String(o.by_teacher[t.id]||0));tt.onclick=()=>go(String(t.id),'');r.append(tt);tb.append(r)}
+        const f=el('tr');f.append(el('th','','各時段待處理'));for(const s of S.meta.slots){const td=el('td','c',String(o.by_slot[s.id]||0));td.onclick=()=>go('',String(s.id));f.append(td)}f.append(el('td'));tb.append(f);
+        const un=el('button','g',`未分類訊息 ${o.unassigned} 則`);un.onclick=()=>go('none','');
+        v.replaceChildren(el('div','box','點任一格可篩選對應家長的訊息。尚未新增導師時,請先到「導師/學生管理」。'),tb,un)}
+
+        async function vMg(){await loadMeta();const v=$('view'),out=[];const reload=()=>vMg();
+        const box=(t)=>{const b=el('div','box');b.append(el('h3','',t));out.push(b);return b};
+        const run=async f=>{try{await f();reload()}catch(e){alert(e.message)}};
+        let b=box('導師');S.meta.teachers.forEach(t=>{const r=el('div','row',t.name);const d=el('button','r','刪除');d.onclick=()=>confirm('刪除導師?其學生會變成未指定導師')&&run(()=>api('/api/teachers/'+t.id,'DELETE'));r.append(d);b.append(r)});
+        let r=el('div','row'),i=el('input');i.placeholder='新增導師姓名';let a=el('button','','新增');a.onclick=()=>run(()=>api('/api/teachers','POST',{name:i.value}));r.append(i,a);b.append(r);
+        b=box('上課時段');S.meta.slots.forEach(s=>{const rr=el('div','row',s.label),d=el('button','r','刪除');d.onclick=()=>confirm('刪除時段?')&&run(()=>api('/api/slots/'+s.id,'DELETE'));rr.append(d);b.append(rr)});
+        r=el('div','row');const wd=sel('一二三四五六日'.split('').map((x,k)=>[k,'週'+x]),5,null),s1=el('input'),s2=el('input');s1.placeholder='開始 9:00';s2.placeholder='結束 10:30';s1.size=s2.size=8;
+        a=el('button','','新增時段');a.onclick=()=>run(()=>api('/api/slots','POST',{weekday:wd.value,start:s1.value,end:s2.value}));r.append(wd,s1,s2,a);b.append(r);
+        b=box('學生與家長(家長需先傳過訊息給官方帳號,才會出現在下拉選單)');
+        const stu=await api('/api/students');const C=S.meta.contacts.map(c=>[c.user_id,c.name]);
+        const row=s=>{const r=el('div','row'),n=el('input'),t=sel(T(),s&&s.teacher_id,'(導師)'),sl=sel(SL(),s&&s.slot_id,'(時段)'),p=sel(C,s&&s.parent_user_id,'(家長 LINE)'),nt=el('input');
+            n.placeholder='學生姓名';n.value=s?s.name:'';nt.placeholder='備註';nt.value=s?s.note||'':'';
+            const body=()=>({name:n.value,teacher_id:t.value,slot_id:sl.value,parent_user_id:p.value,note:nt.value});
+            const sv=el('button','',s?'儲存':'新增');sv.onclick=()=>run(()=>api(s?'/api/students/'+s.id:'/api/students',s?'PUT':'POST',body()));r.append(n,t,sl,p,nt,sv);
+            if(s){const d=el('button','r','刪除');d.onclick=()=>confirm('刪除此學生?')&&run(()=>api('/api/students/'+s.id,'DELETE'));r.append(d)}return r};
+        stu.forEach(s=>b.append(row(s)));b.append(el('hr'),row(null));v.replaceChildren(...out)}
+
+        async function vSt(){const v=$('view'),b=el('div','box');b.append(el('h3','','Super User 設定'));
+        const t=el('button',S.push?'r':'',S.push?'🔴 關閉推播功能(目前:開啟)':'🟢 開啟推播功能(目前:關閉)');
+        t.onclick=async()=>{await api('/api/settings/push','POST',{enabled:!S.push});await loadMeta();vSt()};
+        b.append(t,el('p','note','關閉時,所有人的「傳送(PUSH)」按鈕會變灰且無法按下;伺服器端也會拒絕送出。推播會消耗官方帳號訊息額度。'));
+        const lg=await api('/api/sent_log'),tb=el('table'),h=el('tr');['時間','對象','內容','結果','操作者'].forEach(x=>h.append(el('th','',x)));tb.append(h);
+        lg.forEach(r=>{const tr=el('tr');[new Date(r.ts*1000).toLocaleString('zh-TW'),r.name,r.text.slice(0,60),r.ok?'成功':'失敗 '+r.error,r.by_role].forEach(x=>tr.append(el('td','',x)));tb.append(tr)});
+        v.replaceChildren(b,el('h3','','最近 50 筆 PUSH 紀錄'),tb)}
+
+        $('rl').onclick=async e=>{e.preventDefault();try{const r=await api('/api/reload_faq','POST');alert('FAQ 已重新載入('+r.items+' 種問法)')}catch(x){alert('失敗:'+x.message)}};
+        (async()=>{await loadMeta();loadQuota();render(true);
+        setInterval(async()=>{try{const m=await api('/api/me');if(m.push_enabled!==S.push){S.push=m.push_enabled;if(S.tab==='msgs')vMsgs(true)}if(S.tab==='msgs')vMsgs(false)}catch(e){}},15000);setInterval(loadQuota,60000)})();
+        </script>
+    </body>
+</html>
