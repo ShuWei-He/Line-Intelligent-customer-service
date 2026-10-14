@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+httpx
+numpy
+python-dotenv
+line-bot-sdk
