@@ -87,6 +87,7 @@ python -m uvicorn main:app --host 0.0.0.0. --port 8000
 終端機出現「FAQ 載入完成」後，就可以在瀏覽器開啟：
 
 <http://localhost:8000>
+
 <https://domainName:8000>
 
 使用後台帳號與密碼登入。
