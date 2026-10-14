@@ -147,13 +147,21 @@ Webhook，後台主要記錄的是家長傳入的訊息，不一定能完整呈�
 -   「好的」、「謝謝」等通常不需要回覆的訊息，會被略過或放到「無須回覆（已讀）」頁面。
 -   退費、投訴、孩子受傷等敏感內容只會顯示紅色警示，不產生一般草稿，交由人工處理。
 
+-   <img width="1895" height="965" alt="image" src="https://github.com/user-attachments/assets/f597ef5f-7c2f-4be3-81fc-27957f7241ab" />
+
+
 這樣做是為了避免系統在需要判斷情境、安撫家長或涉及學生安全的情況下，直接提供不合適的回覆。
 
 ## 五、FAQ 自動回覆機制
 
+<img width="1917" height="963" alt="image" src="https://github.com/user-attachments/assets/08a844e7-d39d-46a9-a4ef-62656a20af71" />
+
 自動回覆功能預設為關閉。只有 Super User
 可以在後台「設定」頁開啟，並調整相似度門檻。
 預設門檻為`0.80` 門檻越高，系統就越保守。
+
+<img width="1887" height="680" alt="image" src="https://github.com/user-attachments/assets/986e5d7c-06fd-4743-9f1b-3a664c220fb4" />
+
 
 一筆訊息必須同時符合以下條件，才會進入自動回覆流程：
 
@@ -170,6 +178,8 @@ FAQ（例如透過 `make_faq.py`
 產生）預設不會開啟自動回覆，必須先人工檢查並確認後，才可以自行將 `auto`
 設成 `Y`。
 
+
+
 ### 傳送與額度
 
 系統會先嘗試標記已讀，再使用 LINE 的 reply 方式回覆。如果超過
@@ -179,6 +189,9 @@ FAQ（例如透過 `make_faq.py`
 只有 Super User 開啟推播功能時，系統才會使用 PUSH補送。
 如果推播未開啟或訊息額度不足，就會回到人工處理流程。後台也提供自動回覆紀錄，可以查看回覆內容。
 若答案不正確，可以標記有誤，再修正 FAQ 或提高相似度門檻。
+
+<img width="1911" height="957" alt="image" src="https://github.com/user-attachments/assets/f7e8f6d0-1d8c-493d-92f9-2879d7add31e" />
+
 
 手動在 OA Manager 回覆不會消耗這套系統的 PUSH 訊息額度。
 透過後台 PUSH 傳送或設定 `PUSH_TO_OWNER=1` 發送通知，則會使用 LINE
@@ -191,6 +204,9 @@ FAQ（例如透過 `make_faq.py`
 「謝謝」、「好的」等不需要回覆的訊息，可以在「無須回覆（已讀）」頁面逐則或一次全部標記已讀。系統使用
 LINE 的 Mark as read API，因此需要符合 SDK 版本需求（`line-bot-sdk` 3.21
 以上），而且 OA Manager 的「聊天」設定必須開啟。
+
+<img width="1907" height="922" alt="image" src="https://github.com/user-attachments/assets/bba0f9fd-377f-4937-8dd7-ccc4b22f8aa7" />
+
 
 標記某一則訊息時，LINE
 可能會一併將它之前的訊息標記為已讀。自動回覆與後台 PUSH
